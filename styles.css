@@ -1,0 +1,128 @@
+.tiro-suggestion-title {
+  font-weight: var(--font-semibold);
+}
+
+.tiro-suggestion-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.tiro-suggestion-snippet {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  margin-top: var(--size-2-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Themes such as Baseline pad every sidebar view (`.mod-sidedock … > .view-content`); outrank them. */
+.tiro-panel,
+.workspace .workspace-leaf-content[data-type="tiro-panel"] > .view-content.tiro-panel {
+  padding: var(--size-4-4) var(--size-4-6);
+  overflow-x: hidden;
+}
+
+.tiro-panel-section {
+  margin-bottom: var(--size-4-5);
+}
+
+.tiro-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--size-4-2);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.tiro-panel-subheading {
+  margin: var(--size-4-2) 0 var(--size-2-1);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.tiro-panel-wide {
+  width: 100%;
+}
+
+.tiro-panel-status {
+  margin-top: var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+.tiro-panel-hint {
+  margin-top: var(--size-2-2);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.tiro-panel-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+.tiro-panel-search {
+  width: 100%;
+}
+
+.tiro-panel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  min-width: 0;
+  padding: var(--size-2-2) var(--size-4-1);
+  border-radius: var(--radius-s);
+  cursor: var(--cursor);
+}
+
+.tiro-panel-row:hover,
+.tiro-panel-row:focus-visible {
+  background-color: var(--background-modifier-hover);
+}
+
+.tiro-panel-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tiro-panel-row-title {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  min-width: 0;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.tiro-panel-row-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tiro-panel-row-meta {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.tiro-panel-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-accent);
+}
+
+.tiro-panel-mark .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
+.tiro-panel-icon {
+  flex: 0 0 auto;
+}

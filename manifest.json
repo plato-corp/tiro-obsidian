@@ -1,0 +1,10 @@
+{
+  "id": "tiro",
+  "name": "Tiro",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Sync your Tiro meeting notes into your vault, search them, and link to them.",
+  "author": "Tiro",
+  "authorUrl": "https://tiro.ooo",
+  "isDesktopOnly": false
+}
