@@ -31,7 +31,7 @@ export async function startLoopback(
   options: { ports?: number[]; timeoutMs?: number } = {},
 ): Promise<LoopbackListener> {
   if (!Platform.isDesktop) throw new OAuthError("desktop_only");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Obsidian runs plugins as CommonJS; import("http") can't resolve there
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- Obsidian runs plugins as CommonJS; import("http") can't resolve there
   const { createServer } = require("http") as typeof import("http");
   const ports = options.ports ?? LOOPBACK_PORTS;
   const timeoutMs = options.timeoutMs ?? LOOPBACK_TIMEOUT_MS;
