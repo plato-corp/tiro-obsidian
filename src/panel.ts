@@ -11,6 +11,7 @@ const DEBOUNCE_MS = 300;
 const RECENT_COUNT = 20;
 
 export class TiroPanelView extends ItemView {
+  private recordingMode: "live" | "offline" = "live";
   private notes: Note[] = [];
   private notesError = "";
   private loading = false;
@@ -53,6 +54,7 @@ export class TiroPanelView extends ItemView {
     this.listEl = null;
     const connected = this.plugin.isConnected();
 
+    if (Platform.isDesktopApp) this.renderRecording(el);
     if (!connected) {
       this.renderSignedOut(el);
       return;
@@ -91,6 +93,58 @@ export class TiroPanelView extends ItemView {
     }
   }
 
+  private renderRecording(parent: HTMLElement): void {
+    const section = parent.createDiv({ cls: "tiro-panel-section tiro-rec" });
+    const top = section.createDiv({ cls: "tiro-rec-top" });
+    const labelId = `tiro-rec-mode-${Math.random().toString(36).slice(2)}`;
+    top.createSpan({ cls: "tiro-sr-only", text: this.t("recMode"), attr: { id: labelId } });
+    const modes = top.createDiv({ cls: "tiro-rec-modes", attr: { role: "group", "aria-labelledby": labelId } });
+    const help = top.createSpan({ cls: "tiro-rec-help", attr: { title: this.t("recHint"), "aria-label": this.t("recHint"), tabindex: "0" } });
+    setIcon(help, "info");
+    const body = section.createDiv({ cls: "tiro-rec-body" });
+    const modeButtons: HTMLButtonElement[] = [];
+    const draw = (animate = false) => {
+      body.empty();
+      const live = this.recordingMode === "live";
+      modes.dataset.mode = this.recordingMode;
+      modeButtons.forEach((btn, i) => {
+        const selected = i === (live ? 0 : 1);
+        btn.toggleClass("is-active", selected);
+        btn.setAttribute("aria-pressed", String(selected));
+      });
+      const actions = body.createDiv({ cls: "tiro-recording-actions" });
+      const add = (label: StringKey, full: StringKey, icon: string, action: import("./recording-links").RecordingAction, primary = false) => {
+        const target = primary ? actions : actions.querySelector<HTMLElement>(".tiro-rec-secondary-actions") ?? actions.createDiv({ cls: "tiro-rec-secondary-actions" });
+        const btn = target.createEl("button", { cls: primary ? "tiro-rec-start mod-cta" : "tiro-rec-secondary",
+          attr: { title: this.t(full), "aria-label": this.t(full) } });
+        setIcon(btn.createSpan({ cls: "tiro-rec-icon", attr: { "aria-hidden": "true" } }), icon);
+        btn.createSpan({ text: this.t(label) });
+        btn.addEventListener("click", () => this.plugin.requestRecording(action));
+      };
+      add("recStartShort", live ? "recStartLive" : "recStartOffline", "mic", live ? "start-live" : "start-offline", true);
+      if (live) add("recPauseShort", "recPauseLive", "pause", "pause-live");
+      add("recFinishShort", live ? "recEndLive" : "recEndOffline", "square", live ? "end-live" : "end-offline");
+      body.createDiv({ cls: "tiro-rec-hint", text: this.t(live ? "recLiveHint" : "recOfflineHint") });
+      if (animate) {
+        body.getAnimations().forEach(animation => animation.cancel());
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        body.animate(reduced ? [{ opacity: .4 }, { opacity: 1 }] : [
+          { opacity: .4, transform: `translateX(${live ? -6 : 6}px)` }, { opacity: 1, transform: "translateX(0)" },
+        ], { duration: reduced ? 120 : 180, easing: "ease-out" });
+      }
+    };
+    for (const mode of ["live", "offline"] as const) {
+      const btn = modes.createEl("button", { text: this.t(mode === "live" ? "recModeLive" : "recModeOffline") });
+      modeButtons.push(btn);
+      btn.addEventListener("click", () => {
+        if (mode === this.recordingMode) return;
+        this.recordingMode = mode;
+        draw(true);
+      });
+    }
+    draw();
+  }
+
   private renderSignedOut(parent: HTMLElement): void {
     const section = parent.createDiv({ cls: "tiro-panel-section" });
     if (Platform.isDesktopApp) {
@@ -105,12 +159,12 @@ export class TiroPanelView extends ItemView {
   }
 
   private renderSync(parent: HTMLElement): void {
-    const section = parent.createDiv({ cls: "tiro-panel-section" });
-    this.heading(section, this.t("panelSync"));
+    const section = parent.createDiv({ cls: "tiro-panel-section tiro-sync-section" });
+    const head = this.heading(section, this.t("panelSync"));
     const busy = this.plugin.isSyncing();
-    const button = section.createEl("button", {
+    const button = head.createEl("button", {
       text: this.t(busy ? "btnSyncing" : "btnSyncNow"),
-      cls: "tiro-panel-wide",
+      cls: "tiro-sync-button",
     });
     button.disabled = busy;
     button.addEventListener("click", () => {

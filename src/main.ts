@@ -1,4 +1,5 @@
-import { Notice, Plugin, getLanguage, moment } from "obsidian";
+import { recordingUrl, type RecordingAction } from "./recording-links";
+import { Notice, Platform, Plugin, getLanguage, moment } from "obsidian";
 import { TiroPanelView, VIEW_TYPE_TIRO } from "./panel";
 import type { PanelState } from "./panel-state";
 import { TiroAuth, isSignedIn } from "./auth";
@@ -102,11 +103,45 @@ export default class TiroPlugin extends Plugin {
       },
     });
 
+    const recordingCommands = [
+      ["start-live-note", "recStartLive", "start-live"],
+      ["pause-live-note", "recPauseLive", "pause-live"],
+      ["end-live-note", "recEndLive", "end-live"],
+      ["start-offline-recording", "recStartOffline", "start-offline"],
+      ["end-offline-recording", "recEndOffline", "end-offline"],
+    ] as const;
+    for (const [id, key, action] of recordingCommands) {
+      this.addCommand({ id, name: this.t(key), checkCallback: (checking) => {
+        if (!Platform.isDesktopApp) return false;
+        if (!checking) this.requestRecording(action);
+        return true;
+      } });
+    }
     this.scheduleAutoSync();
     if (this.settings.syncOnStartup) {
       this.app.workspace.onLayoutReady(() => {
         if (this.isConnected()) void this.syncNotes();
       });
+    }
+  }
+
+  requestRecording(action: RecordingAction): void {
+    if (!Platform.isDesktopApp) return;
+    try {
+      const url = recordingUrl(action);
+      if (Platform.isDesktop && Platform.isMacOS) {
+        // Desktop-only require keeps Node modules out of the mobile load path.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- guarded macOS desktop launch
+        const { execFile } = require("node:child_process") as typeof import("node:child_process");
+        execFile("/usr/bin/open", ["-g", url], (error) => {
+          new Notice(this.t(error ? "recFailed" : "recRequested"));
+        });
+      } else {
+        window.open(url);
+        new Notice(this.t("recRequested"));
+      }
+    } catch {
+      new Notice(this.t("recFailed"));
     }
   }
 

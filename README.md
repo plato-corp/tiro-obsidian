@@ -1,8 +1,14 @@
 # Tiro for Obsidian
 
-Bring your [Tiro](https://tiro.ooo) meeting notes into your vault. Sync summaries and transcripts as Markdown, search your notes, and insert links to them.
+Bring your [Tiro](https://tiro.ooo) meeting notes into your vault. Sync summaries and transcripts as Markdown, search your notes, insert links to them, and control recordings in the Tiro desktop app.
 
-**Requirements:** a Tiro account. Tiro is a paid service, and the plugin reads your notes from Tiro's servers (see [Privacy and network use](#privacy-and-network-use)).
+**Requirements:** a Tiro account. Available features depend on your Tiro plan, and the plugin reads your notes from Tiro's servers (see [Privacy and network use](#privacy-and-network-use)).
+
+## Preview
+
+![Live recording controls in Obsidian](assets/recording-live.png)
+
+![Offline recording controls in Obsidian](assets/recording-offline.png)
 
 ## Setup
 
@@ -15,6 +21,10 @@ Bring your [Tiro](https://tiro.ooo) meeting notes into your vault. Sync summarie
 Signing in works on the desktop app only. The plugin listens on `127.0.0.1` (ports 27193 to 27196) for the browser's one-time redirect, which mobile apps can't do. On mobile, use an API key or sign in on a desktop.
 
 The sign-in tokens are stored in this plugin's data file (`data.json`), like the API key. If you sync your vault's `.obsidian` folder between devices, the sign-in goes with it, so a phone can use a sign-in made on a desktop. If you don't want that, don't sync the plugin's data, or sign out when you're done.
+
+## Recording controls
+
+On desktop, choose Live or Offline in the side panel. Start a new recording, pause a live note, finish a live note to create its document, or end and upload an offline recording. These actions require Tiro desktop 4.12.1 or later and use the desktop app’s signed-in account. Sending a request does not confirm completion. Search and sync remain available without the desktop app.
 
 ## Commands
 
@@ -91,3 +101,19 @@ npm run lint
 ## License
 
 MIT
+
+## Desktop recording
+
+Requires Tiro desktop 4.12.1 or later, installed and signed in. Recording commands use the desktop app's account independently of this integration's API login. The live end-and-create-document handler shipped in 4.12.1; older apps may ignore it. There is no fallback to legacy start-recording or stop-recording.
+
+| Action | Desktop URL |
+| --- | --- |
+| Start Live Note | `tiro://notes/create/live-voice?background=true` |
+| Start Offline Recording | `tiro://notes/create/offline-mode?background=true` |
+| Pause Live Note | `tiro://notes/pause/live-voice?background=true` |
+| End Live Note and Create Document | `tiro://notes/end/live-voice?background=true` |
+| End and Upload Offline Recording | `tiro://notes/end/offline-mode?background=true` |
+
+Pause affects only the current live recording. It leaves the note open and does not request a summary. End Live Note finishes the current live note and creates its document. End and upload affects only the current offline session, including a paused session. Pause and both end actions target the recording session even when another note is displayed. No `guid` or `target` is sent.
+
+A request being sent does not confirm recording, pause, document generation, or upload completion. Check the Tiro app. Recording status files and the menu-bar indicator remain excluded while PR #4417 is under review. The older generic Stop Recording command is replaced by three explicit commands (live pause, live end, offline end and upload); update any old hotkey assignments.
