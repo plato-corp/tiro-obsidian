@@ -12,7 +12,7 @@
 
 3. Open a pull request against `main`.
 
-Every pull request, including those from maintainers, requires code owner approval from either @paul-theplato or @newinh and passing `verify` and `secrets` CI checks before it can be merged.
+Every pull request, including those from maintainers, requires code owner approval from either @paul-theplato or @newinh and passing `verify` and `scan / secrets` CI checks before it can be merged.
 
 Do not report vulnerabilities or exposed secrets in issues or pull requests. Follow [SECURITY.md](SECURITY.md) instead.
 
