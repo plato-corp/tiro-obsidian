@@ -122,7 +122,6 @@ export class TiroPanelView extends ItemView {
         btn.addEventListener("click", () => this.plugin.requestRecording(action));
       };
       add("recStartShort", live ? "recStartLive" : "recStartOffline", "mic", live ? "start-live" : "start-offline", true);
-      if (live) add("recPauseShort", "recPauseLive", "pause", "pause-live");
       add("recFinishShort", live ? "recEndLive" : "recEndOffline", "square", live ? "end-live" : "end-offline");
       body.createDiv({ cls: "tiro-rec-hint", text: this.t(live ? "recLiveHint" : "recOfflineHint") });
       if (animate) {

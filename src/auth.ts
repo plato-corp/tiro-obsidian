@@ -14,7 +14,7 @@ import {
 } from "./oauth";
 import type { Http, TokenSet } from "./oauth";
 
-/** Sign-in state kept in the plugin's data file. */
+/** Runtime sign-in state. Credentials must not be written to vault settings. */
 export interface AuthState {
   // Result of the dynamic client registration; kept across sign-outs.
   clientId?: string;
@@ -59,6 +59,19 @@ export interface SignInHooks {
 
 export class TiroAuth {
   private refreshing: Promise<string | null> | undefined;
+  private generation = 0;
+  private writes: Promise<unknown> = Promise.resolve();
+  private cancelSignIn: (() => void) | undefined;
+
+  private saveCurrent(state: AuthState, generation: number): Promise<boolean> {
+    const operation = this.writes.then(async () => {
+      if (generation !== this.generation) return false;
+      await this.store.save(state);
+      return generation === this.generation;
+    });
+    this.writes = operation.catch(() => undefined);
+    return operation;
+  }
 
   constructor(
     private readonly store: AuthStore,
@@ -75,57 +88,75 @@ export class TiroAuth {
   }
 
   async signOut(): Promise<void> {
-    await this.store.save(dropTokens(this.store.load()));
+    const generation = ++this.generation;
+    this.refreshing = undefined;
+    this.cancelSignIn?.();
+    await this.saveCurrent(dropTokens(this.store.load()), generation);
   }
 
   async signIn(hooks: SignInHooks): Promise<AuthState> {
+    const generation = ++this.generation;
+    this.refreshing = undefined;
+    this.cancelSignIn?.();
     const state = randomString(16);
     const verifier = randomString(48);
     const listener = await (hooks.listen ?? startLoopback)(state);
+    if (generation !== this.generation) {
+      listener.close();
+      throw new OAuthError("cancelled");
+    }
+    const cancel = () => listener.close();
+    this.cancelSignIn = cancel;
     try {
       let auth = this.store.load();
       const uris = LOOPBACK_PORTS.map(redirectUriFor);
       if (!auth.clientId || auth.redirectUris?.join(" ") !== uris.join(" ")) {
         auth = { clientId: await registerClient(this.http, uris), redirectUris: uris };
-        await this.store.save(auth);
+        if (!(await this.saveCurrent(auth, generation))) throw new OAuthError("cancelled");
       }
       const clientId = auth.clientId as string;
       const challenge = await pkceChallenge(verifier);
+      if (generation !== this.generation) throw new OAuthError("cancelled");
       hooks.openBrowser(buildAuthorizeUrl({ clientId, redirectUri: listener.redirectUri, state, challenge }));
 
       const code = await listener.waitForCode();
       try {
         const tokens = await exchangeCode(this.http, { clientId, code, verifier, redirectUri: listener.redirectUri });
         const next = withTokens(auth, tokens);
-        await this.store.save(next);
+        if (!(await this.saveCurrent(next, generation))) throw new OAuthError("cancelled");
         return next;
       } catch (error) {
         // If the server no longer knows the client, register again on the next sign-in.
-        if (error instanceof OAuthError && error.code === "invalid_client") await this.store.save({});
+        if (error instanceof OAuthError && error.code === "invalid_client") await this.saveCurrent({}, generation);
         throw error;
       }
     } finally {
+      if (this.cancelSignIn === cancel) this.cancelSignIn = undefined;
       listener.close();
     }
   }
 
   /** A usable access token, refreshed when close to expiry. Null when signed out or refresh was refused. */
   getAccessToken(now = Date.now()): Promise<string | null> {
+    const generation = this.generation;
     const auth = this.store.load();
     if (auth.accessToken && (!auth.expiresAt || auth.expiresAt - SKEW_MS > now)) return Promise.resolve(auth.accessToken);
     if (!auth.clientId || !auth.refreshToken) {
       return (async () => {
-        if (auth.accessToken || auth.refreshToken) await this.store.save(dropTokens(auth));
+        if (auth.accessToken || auth.refreshToken) await this.saveCurrent(dropTokens(auth), generation);
         return null;
       })();
     }
-    this.refreshing ??= this.refresh(auth, now).finally(() => {
-      this.refreshing = undefined;
-    });
+    if (!this.refreshing) {
+      const pending = this.refresh(auth, now, generation).finally(() => {
+        if (this.refreshing === pending) this.refreshing = undefined;
+      });
+      this.refreshing = pending;
+    }
     return this.refreshing;
   }
 
-  private async refresh(auth: AuthState, now: number): Promise<string | null> {
+  private async refresh(auth: AuthState, now: number, generation: number): Promise<string | null> {
     try {
       const tokens = await refreshTokens(
         this.http,
@@ -133,12 +164,12 @@ export class TiroAuth {
         now,
       );
       const next = withTokens(auth, tokens);
-      await this.store.save(next);
+      if (!(await this.saveCurrent(next, generation))) return null;
       return next.accessToken ?? null;
     } catch (error) {
       // Only a refusal from the server signs the user out; a network failure keeps the sign-in.
       if (error instanceof OAuthError && error.code !== "network") {
-        await this.store.save(error.code === "invalid_client" ? {} : dropTokens(auth));
+        await this.saveCurrent(error.code === "invalid_client" ? {} : dropTokens(auth), generation);
       }
       return null;
     }

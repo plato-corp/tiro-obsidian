@@ -48,9 +48,19 @@ export async function startLoopback(
   let settled = false;
   let timer: number | undefined;
   const server = createServer((request, response) => {
-    const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
-    if (url.pathname !== "/callback" || settled) {
+    const address = server.address();
+    const host = typeof address === "object" && address ? `${LOOPBACK_HOST}:${address.port}` : "";
+    if (request.method !== "GET") { response.writeHead(405).end(); return; }
+    if (request.headers.host !== host) { response.writeHead(403).end(); return; }
+    let url: URL;
+    try { url = new URL(request.url ?? "/", `http://${host}`); }
+    catch { response.writeHead(400).end(); return; }
+    if (url.origin !== `http://${host}` || url.pathname !== "/callback" || settled) {
       response.writeHead(404).end();
+      return;
+    }
+    if (url.searchParams.get("state") !== expectedState) {
+      response.writeHead(400, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(PAGE_ERROR);
       return;
     }
     settled = true;
@@ -61,7 +71,7 @@ export async function startLoopback(
     } catch (error) {
       failure = error instanceof Error ? error : new OAuthError("callback_failed");
     }
-    response.writeHead(failure ? 400 : 200, { "Content-Type": "text/html; charset=utf-8", Connection: "close" });
+    response.writeHead(failure ? 400 : 200, { "Content-Type": "text/html; charset=utf-8", Connection: "close", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
     response.end(failure ? PAGE_ERROR : PAGE_OK);
     if (code) resolveCode(code);
     else rejectCode(failure ?? new OAuthError("callback_failed"));
