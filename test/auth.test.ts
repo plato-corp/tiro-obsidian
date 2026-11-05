@@ -134,3 +134,42 @@ describe("access token refresh", () => {
     expect(isSignedIn(store.get())).toBe(true);
   });
 });
+
+
+describe("authentication session isolation", () => {
+  for (const fails of [false, true]) {
+    it(`ignores a late ${fails ? "failure" : "success"} after logout`, async () => {
+      const store = makeStore({ clientId: "c", accessToken: "expired", refreshToken: "fixture-refresh", expiresAt: 1 });
+      let release!: () => void; let entered!: () => void;
+      const gate = new Promise<void>(r => { release = r; });
+      const started = new Promise<void>(r => { entered = r; });
+      const http: Http = async () => {
+        entered(); await gate;
+        return fails ? { status: 401, text: JSON.stringify({ error: "invalid_client" }) }
+          : { status: 200, text: JSON.stringify({ access_token: "fixture-new", expires_in: 3600 }) };
+      };
+      const auth = new TiroAuth(store, http);
+      const pending = auth.getAccessToken(5000);
+      await started; await auth.signOut();
+      if (fails) await store.save({ clientId: "new-account", accessToken: "fixture-current" });
+      release(); expect(await pending).toBeNull();
+      if (fails) expect(store.get().accessToken).toBe("fixture-current");
+      else expect(isSignedIn(store.get())).toBe(false);
+    });
+  }
+
+  it("serializes a delayed store write before the final logout write", async () => {
+    let state: AuthState = { clientId: "c", refreshToken: "fixture-refresh", expiresAt: 1 };
+    let release!: () => void; let entered!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const started = new Promise<void>(r => { entered = r; });
+    const auth = new TiroAuth({ load: () => state, save: async next => {
+      if (next.accessToken) { entered(); await gate; }
+      state = next;
+    } }, async () => ({ status: 200, text: JSON.stringify({ access_token: "fixture-new" }) }));
+    const pending = auth.getAccessToken(5000); await started;
+    const logout = auth.signOut(); release();
+    expect(await pending).toBeNull(); await logout;
+    expect(isSignedIn(state)).toBe(false);
+  });
+});

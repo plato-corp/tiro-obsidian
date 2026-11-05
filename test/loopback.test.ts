@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, request } from "node:http";
 import { describe, expect, it } from "vitest";
 import { LOOPBACK_PORTS, redirectUriFor, startLoopback } from "../src/loopback";
 
@@ -21,12 +21,14 @@ describe("loopback listener", () => {
     await expect(get(`${listener.redirectUri}?code=again&state=st`)).rejects.toThrow();
   });
 
-  it("rejects a callback with the wrong state", async () => {
+  it("rejects a wrong state while preserving the legitimate login", async () => {
     const listener = await startLoopback("st", { ports: PORTS });
     const pending = listener.waitForCode();
     const reply = await get(`${listener.redirectUri}?code=abc&state=evil`);
     expect(reply.status).toBe(400);
-    await expect(pending).rejects.toMatchObject({ code: "state_mismatch" });
+    const valid = await get(`${listener.redirectUri}?code=legitimate&state=st`);
+    expect(valid.status).toBe(200);
+    expect(await pending).toBe("legitimate");
   });
 
   it("falls back to the next port when the first is taken", async () => {
@@ -56,4 +58,18 @@ describe("loopback listener", () => {
     const listener = await startLoopback("st", { ports: PORTS, timeoutMs: 30 });
     await expect(listener.waitForCode()).rejects.toMatchObject({ code: "timeout" });
   });
+});
+
+it("rejects other methods and hosts without consuming the callback", async () => {
+  const listener = await startLoopback("st", { ports: PORTS });
+  try {
+    expect((await fetch(listener.redirectUri, { method: "POST" })).status).toBe(405);
+    const foreignHost = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request(listener.redirectUri, { headers: { Host: "untrusted.example" } }, res => { res.resume(); resolve(res.statusCode); });
+      req.on("error", reject); req.end();
+    });
+    expect(foreignHost).toBe(403);
+    expect((await get(`${listener.redirectUri}?state=st&code=good`)).status).toBe(200);
+    expect(await listener.waitForCode()).toBe("good");
+  } finally { listener.close(); }
 });

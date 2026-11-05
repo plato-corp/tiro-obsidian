@@ -1,6 +1,6 @@
 {
   "name": "tiro-obsidian",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tiro meeting notes in your vault.",
   "main": "main.js",
   "private": true,
@@ -9,7 +9,9 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint .",
     "test": "vitest run",
-    "version": "node version-bump.mjs && git add manifest.json versions.json"
+    "version": "node version-bump.mjs && git add manifest.json versions.json",
+    "security:package": "node scripts/check-package.mjs",
+    "package:secure": "npm run build && node scripts/package-release.mjs"
   },
   "keywords": [],
   "license": "MIT",
@@ -17,13 +19,20 @@
     "@eslint/js": "^9.39.5",
     "@eslint/json": "^0.14.0",
     "@types/node": "^22.20.5",
-    "esbuild": "^0.25.12",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-plugin-obsidianmd": "^0.4.2",
     "globals": "^17.13.0",
-    "obsidian": "^1.8.7",
+    "obsidian": "^1.14.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
-    "vitest": "^3.2.7"
+    "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.4",
+    "moment": "^2.31.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

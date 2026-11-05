@@ -1,3 +1,4 @@
+import { publicPluginData } from "./credentials";
 import { recordingUrl, type RecordingAction } from "./recording-links";
 import { Notice, Platform, Plugin, getLanguage, moment } from "obsidian";
 import { TiroPanelView, VIEW_TYPE_TIRO } from "./panel";
@@ -9,7 +10,7 @@ import { TiroClient } from "./api";
 import type { ApiErrorKind, Note } from "./api";
 import { pickLocale, translate } from "./i18n";
 import type { Locale, StringKey } from "./i18n";
-import { buildSavedData, splitSavedData, summarizeSync } from "./panel-logic";
+import { splitSavedData, summarizeSync } from "./panel-logic";
 import { NoteSearchModal } from "./search-modal";
 import { DEFAULT_SETTINGS, TiroSettingTab } from "./settings";
 import type { TiroSettings } from "./settings";
@@ -96,7 +97,7 @@ export default class TiroPlugin extends Plugin {
       editorCallback: (editor: Editor) => {
         if (!this.requireKey()) return;
         new NoteSearchModal(this.app, this.client, this.locale, (note) => {
-          const title = (note.title?.trim() || this.t("untitled")).replace(/[[\]]/g, "");
+          const title = (note.title?.trim() || this.t("untitled")).replace(/[[\]\r\n]/g, " ");
           editor.replaceSelection(`[${title}](${note.webUrl})`);
           new Notice(this.t("linkInserted", { title }));
         }).open();
@@ -105,7 +106,6 @@ export default class TiroPlugin extends Plugin {
 
     const recordingCommands = [
       ["start-live-note", "recStartLive", "start-live"],
-      ["pause-live-note", "recPauseLive", "pause-live"],
       ["end-live-note", "recEndLive", "end-live"],
       ["start-offline-recording", "recStartOffline", "start-offline"],
       ["end-offline-recording", "recEndOffline", "end-offline"],
@@ -153,10 +153,13 @@ export default class TiroPlugin extends Plugin {
     const { settings, lastSync } = splitSavedData<TiroSettings>((await this.loadData()) as never);
     this.settings = { ...DEFAULT_SETTINGS, ...settings };
     this.panelState.lastSync = lastSync;
+    // Legacy credentials remain in memory for this session, then disappear on reload.
+    // Scrub disk-backed settings before enabling commands or contacting the server.
+    await this.saveSettings();
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(buildSavedData(this.settings, this.panelState.lastSync));
+    await this.saveData(publicPluginData(this.settings, this.panelState.lastSync));
   }
 
   /** (Re)registers the auto-sync timer from the current interval setting. */

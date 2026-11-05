@@ -68,7 +68,7 @@ function toNote(raw: RawNote): Note {
     updatedAt: raw.updatedAt ?? raw.createdAt ?? "",
     sourceType: raw.sourceType ?? "",
     recordingDurationSeconds: raw.recordingDurationSeconds ?? 0,
-    webUrl: raw.webUrl ?? "",
+    webUrl: `https://tiro.ooo/n/${encodeURIComponent(raw.guid ?? raw.noteGuid ?? "")}`,
     participants: raw.participants ?? [],
     collaborators: raw.collaborators ?? [],
     matchedSnippets: raw.matchedSnippets ?? null,
@@ -125,7 +125,7 @@ export class TiroClient {
     const id = this.nextId++;
     const { text, contentType } = await this.post({ jsonrpc: "2.0", id, method, params });
     const message = parseRpcBody(text, contentType, id);
-    if (message.error) throw this.fail("other", 500, message.error.message);
+    if (message.error) throw this.fail("other", 500);
     return message;
   }
 
@@ -150,7 +150,7 @@ export class TiroClient {
       const { result } = await this.rpc("tools/call", { name, arguments: args });
       const text = result?.content?.find((item) => item.type === "text")?.text ?? "";
       if (result?.isError) {
-        throw this.fail("other", /not found/i.test(text) ? 404 : 500, text || undefined);
+        throw this.fail("other", /not found/i.test(text) ? 404 : 500);
       }
       return (result?.structuredContent ?? JSON.parse(text)) as T;
     } catch (error) {
@@ -217,7 +217,14 @@ export class TiroClient {
   async getShareUrl(guid: string): Promise<string | null> {
     try {
       const result = await this.callTool<{ shareUrl?: string | null; url?: string | null }>("get_share_link", { note: guid });
-      return result.shareUrl ?? result.url ?? null;
+      const value = result.shareUrl ?? result.url;
+      if (!value) return null;
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" && url.hostname === "tiro.ooo" && !url.port && !url.username && !url.password ? url.href : null;
+      } catch {
+        return null;
+      }
     } catch (error) {
       if (error instanceof TiroApiError && error.status === 404) return null;
       throw error;

@@ -84,11 +84,11 @@ export function buildAuthorizeUrl(options: {
 /** Reads the authorization code from the callback URL, checking `state` first. */
 export function parseCallback(callbackUrl: string, expectedState: string): string {
   const params = new URL(callbackUrl, "http://127.0.0.1").searchParams;
+  if (params.get("state") !== expectedState) throw new OAuthError("state_mismatch");
   const error = params.get("error");
   if (error) {
     throw new OAuthError(error === "access_denied" ? "cancelled" : error, params.get("error_description") ?? error);
   }
-  if (params.get("state") !== expectedState) throw new OAuthError("state_mismatch");
   const code = params.get("code");
   if (!code) throw new OAuthError("no_code");
   return code;
@@ -117,7 +117,7 @@ export async function registerClient(http: Http, redirectUris: string[]): Promis
     }),
   });
   if (response.status < 200 || response.status >= 300) {
-    throw new OAuthError("register_failed", response.text.slice(0, 300), response.status);
+    throw new OAuthError("register_failed", "Tiro authentication request failed.", response.status);
   }
   const id = (JSON.parse(response.text) as { client_id?: string }).client_id;
   if (!id) throw new OAuthError("register_failed", "No client id", response.status);
@@ -133,11 +133,11 @@ async function requestTokens(http: Http, params: Record<string, string>, now: nu
   });
   if (response.status < 200 || response.status >= 300) {
     let code = "token_failed";
-    let message = response.text.slice(0, 300);
+    let message = "Tiro authentication request failed.";
     try {
       const body = JSON.parse(response.text) as { error?: string; error_description?: string };
-      code = body.error ?? code;
-      message = body.error_description ?? message;
+      code = ["invalid_client", "invalid_grant", "invalid_request", "unauthorized_client"].includes(body.error ?? "") ? body.error! : code;
+      message = "Tiro authentication request failed.";
     } catch {
       // Not JSON; keep the raw text.
     }

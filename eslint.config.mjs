@@ -17,8 +17,15 @@ export default tseslint.config(
     },
   },
   ...obsidianmd.configs.recommended,
+  {
+    ...tseslint.configs.disableTypeChecked,
+    files: ["scripts/*.mjs"],
+    rules: { ...tseslint.configs.disableTypeChecked.rules, "obsidianmd/rule-custom-message": "off", "obsidianmd/no-nodejs-modules": "off" },
+    languageOptions: { globals: globals.node, parserOptions: { projectService: false, project: false } },
+  },
   globalIgnores([
     "node_modules",
+    ".release",
     "dist",
     "esbuild.config.mjs",
     "vitest.config.ts",
