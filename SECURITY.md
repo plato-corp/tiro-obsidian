@@ -1,4 +1,9 @@
 # Security and public client boundary
+
+## Reporting a vulnerability
+Report vulnerabilities privately at <https://github.com/plato-corp/tiro-obsidian/security/advisories/new>. Do not open public issues, pull requests or discussions for vulnerabilities or exposed secrets.
+
+## Public client boundary
 This integration is a public client. Its public OAuth client identifier, API hostnames, read scopes and desktop URL routes are not secrets. Credentials, private API implementations, organization data and internal work notes must never be bundled.
 
 Authentication uses public-client PKCE or a user-provided API key. Requests are sent to the fixed Tiro API/MCP endpoints. This integration does not contain server signing keys, OAuth client secrets or backend business logic. Server-side authorization must enforce account, workspace and note permissions for every request; hiding client code is not an authorization control.
