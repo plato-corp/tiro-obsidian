@@ -1,4 +1,4 @@
-![Tiro for Obsidian — capture, sync, and connect meeting notes](../assets/overview.png)
+![Tiro for Obsidian — 티로에서 기록하고, 마크다운으로 동기화하고, 내 노트와 연결하세요](../assets/overview.ko.png)
 
 [English](https://github.com/plato-corp/tiro-obsidian#readme) · [한국어](https://github.com/plato-corp/tiro-obsidian/blob/main/docs/README.ko.md) · [日本語](https://github.com/plato-corp/tiro-obsidian/blob/main/docs/README.ja.md)
 
